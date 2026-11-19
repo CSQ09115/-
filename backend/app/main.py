@@ -4,7 +4,6 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
-from app.api.router import api_router
 from app.core.database import engine
 from app.db.base import Base
 from contextlib import asynccontextmanager
@@ -18,8 +17,13 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
-# 导入所有模型以确保表被创建
-from app.models import User, Plant, UserPlant, Reminder, Diary, Product, Order, OrderItem, CartItem, Payment, DiagnosisRecord, Address, EmailVerification
+# 先导入并注册全部模型，再建表，最后导入路由与服务。
+# 识别服务在模块导入期会读取 YOLO 配置，必须保证此时 system_configs 已存在；
+# create_all 只会补齐缺失的表，不会影响已有表和数据。
+import app.models  # noqa: F401
+Base.metadata.create_all(bind=engine)
+
+from app.api.router import api_router
 
 # 定时任务调度器
 scheduler = None
@@ -113,9 +117,6 @@ if (ADMIN_UI_DIR / "index.html").exists():
     logging.info("管理后台已挂载：/admin -> %s", ADMIN_UI_DIR)
 else:
     logging.warning("未找到管理后台静态资源 %s，请在 web 目录执行 npm run build:admin", ADMIN_UI_DIR)
-
-# Create database tables
-Base.metadata.create_all(bind=engine)
 
 app.add_middleware(
     CORSMiddleware,
