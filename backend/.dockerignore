@@ -1,0 +1,17 @@
+# Python 构建上下文排除项
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+dev_local.db
+*.sqlite3
+uploads/
+models/uploads/
+iot_service/iot.db
+.pytest_cache/
+tests/
