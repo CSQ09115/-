@@ -1,0 +1,58 @@
+name: flower-guardian
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: flower_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: flower
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-flower_password}
+      POSTGRES_DB: flower_guardian
+      TZ: Asia/Shanghai
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      # 仅绑定本机，供服务器上运维连接；不需要可整段删除
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flower -d flower_guardian"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build:
+      context: ./backend
+    container_name: flower_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://flower:${POSTGRES_PASSWORD:-flower_password}@postgres:5432/flower_guardian
+      SECRET_KEY: ${SECRET_KEY:-please-change-this-secret-key}
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      IMAGE_STORAGE_PATH: /app/uploads
+      API_BASE_URL: http://127.0.0.1:8000
+      TZ: Asia/Shanghai
+    ports:
+      - "8000:8000"
+    volumes:
+      # 植物图片、诊断图片、YOLO 上传模型：容器重建后数据保留
+      - static_data:/app/static
+      - yolo_uploads:/app/models/uploads
+      - user_uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  postgres_data:
+  static_data:
+  yolo_uploads:
+  user_uploads:
