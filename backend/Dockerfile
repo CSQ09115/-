@@ -9,13 +9,14 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# OpenCV / Pillow 运行时依赖
+# OpenCV / Pillow 运行时依赖；libpq5 供 PostgreSQL 驱动使用
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libgl1 \
         libglib2.0-0 \
         libsm6 \
         libxext6 \
         libxrender1 \
+        libpq5 \
         tzdata \
     && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
     && echo $TZ > /etc/timezone \

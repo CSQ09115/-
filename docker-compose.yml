@@ -30,7 +30,8 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://flower:${POSTGRES_PASSWORD:-flower_password}@postgres:5432/flower_guardian
+      # 驱动与 requirements.txt 中的 psycopg2-binary 保持一致，显式指定避免歧义
+      DATABASE_URL: postgresql+psycopg2://flower:${POSTGRES_PASSWORD:-flower_password}@postgres:5432/flower_guardian
       SECRET_KEY: ${SECRET_KEY:-please-change-this-secret-key}
       ALGORITHM: HS256
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
