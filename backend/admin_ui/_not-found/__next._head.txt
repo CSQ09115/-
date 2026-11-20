@@ -1,0 +1,6 @@
+1:"$Sreact.fragment"
+2:I[6464,["/admin/_next/static/chunks/ee6ae40730d75e64.js","/admin/_next/static/chunks/3c1db729ff4ff8b8.js"],"ViewportBoundary"]
+3:I[6464,["/admin/_next/static/chunks/ee6ae40730d75e64.js","/admin/_next/static/chunks/3c1db729ff4ff8b8.js"],"MetadataBoundary"]
+4:"$Sreact.suspense"
+5:I[5239,["/admin/_next/static/chunks/ee6ae40730d75e64.js","/admin/_next/static/chunks/3c1db729ff4ff8b8.js"],"IconMark"]
+0:{"buildId":"HnEX_-spkuTN17eELYnKl","rsc":["$","$1","h",{"children":[["$","meta",null,{"name":"robots","content":"noindex"}],["$","$L2",null,{"children":[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]}],["$","div",null,{"hidden":true,"children":["$","$L3",null,{"children":["$","$4",null,{"name":"Next.Metadata","children":[["$","title","0",{"children":"护花使者后端"}],["$","meta","1",{"name":"description","content":"护花使者管理后台"}],["$","link","2",{"rel":"icon","href":"/favicon.ico?favicon.a1290d19.ico","sizes":"1024x1024","type":"image/x-icon"}],["$","$L5","3",{}]]}]}]}],["$","meta",null,{"name":"next-size-adjust","content":""}]]}],"loading":null,"isPartial":false}
