@@ -10,7 +10,7 @@ SMS_API_URL = "https://api.ihuyi.com/sms/Submit.json"
 def _log_sms_result(mobile: str, purpose: str, success: bool, error: str) -> None:
     """把每次短信发送结果写入 sms_send_logs，供后台「日志 - 短信发送」查看。"""
     try:
-        from app.db.base import SessionLocal
+        from app.core.database import SessionLocal
         from app.models.sms_log import SmsSendLog
 
         with SessionLocal() as db:

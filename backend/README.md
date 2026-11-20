@@ -1,0 +1,82 @@
+# 护花使者后端
+
+FastAPI + SQLAlchemy 后端服务，同时托管 Next.js 管理后台静态站点（`/admin/`）。
+支持植物识别、害虫识别（YOLO）、智能提醒、商城订单、AI 问诊等接口。
+
+## 技术栈
+
+- Python 3.11 / FastAPI / SQLAlchemy 2.x
+- PostgreSQL（生产）/ SQLite（本地默认 `dev_local.db`）
+- YOLO（ultralytics）植物识别与害虫识别
+- 管理后台：Next.js 静态导出，构建产物位于 `admin_ui/`
+
+## 目录结构
+
+```
+backend/
+├── app/                 # 应用代码（api、core、models、services）
+├── admin_ui/            # 管理后台构建产物，由 web 目录 npm run build:admin 生成
+├── models/              # 内置模型 plant.pt / pest.pt 与上传目录 models/uploads
+├── static/              # 静态资源与植物图片 static/plants
+├── dataset/             # 类别配置等
+├── requirements.txt
+├── Dockerfile
+└── .env.example
+```
+
+## 本地运行
+
+```bash
+python -m venv venv
+# Windows
+venv\Scripts\activate
+# Linux/macOS
+source venv/bin/activate
+
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
+
+- 接口文档：http://127.0.0.1:8000/docs
+- 健康检查：http://127.0.0.1:8000/health
+- 管理后台：http://127.0.0.1:8000/admin/，首次启动创建账号 `admin / 123456`
+
+## 配置说明
+
+基础设施配置通过环境变量或 `.env` 提供：
+
+| 变量 | 说明 |
+| --- | --- |
+| `DATABASE_URL` | 数据库连接串，默认 SQLite `dev_local.db` |
+| `SECRET_KEY` | JWT 签名密钥，生产环境必须修改 |
+| `ALGORITHM` | JWT 算法，默认 `HS256` |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | 登录有效期，默认 30 分钟 |
+| `IMAGE_STORAGE_PATH` | 诊断图片存储目录 |
+
+天气、SMTP、AI、支付、QQ/微信登录、YOLO 六组业务配置**只从数据库 `system_configs` 读取**，不再回退 `.env`；未配置时接口返回明确状态，管理员在后台「系统配置」中填写后即时生效。
+
+## Docker 部署
+
+```bash
+# 1. 构建管理后台产物（修改过前端时执行）
+cd web
+npm install
+npm run build:admin
+
+# 2. 回到项目根目录启动
+cd ..
+docker compose build
+docker compose up -d
+docker compose logs -f backend
+```
+
+数据通过命名卷持久化：`postgres_data`、`static_data`、`yolo_uploads`、`user_uploads`。
+完整步骤见项目根目录 `docs/服务器部署指南.md`。
+
+## 接口概览
+
+- `/api/users`：注册、登录、用户信息
+- `/api/plants`、`/api/products`、`/api/orders`：植物与商城
+- `/api/weather/tips`、`/api/ai`：天气与 AI 小贴士
+- `/api/admin/*`：后台管理接口（需管理员 token）
+- `/api/ws`：WebSocket

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>护花使者 · 设备数据看板</title>
+<style>
+  :root {
+    --bg: #f6f8f6; --card: #ffffff; --line: #e3e8e3;
+    --text: #22301f; --muted: #6b7a68;
+    --green: #2f9e57; --red: #d64545; --blue: #3b7dd8; --amber: #e8a33d;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px; background: var(--bg); color: var(--text);
+         font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+          padding: 16px 18px; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+  .card h2 { font-size: 15px; margin: 0 0 2px; }
+  .code { font-size: 12px; color: var(--muted); font-family: Consolas, monospace; }
+  .metrics { display: flex; gap: 18px; margin: 14px 0 10px; }
+  .metric { flex: 1; }
+  .metric .label { font-size: 12px; color: var(--muted); }
+  .metric .value { font-size: 26px; font-weight: 600; line-height: 1.1; }
+  .metric .unit { font-size: 12px; color: var(--muted); font-weight: 400; }
+  .bar { height: 8px; background: #eceff0; border-radius: 5px; overflow: hidden; margin-top: 6px; }
+  .bar > div { height: 100%; border-radius: 5px; transition: width .4s; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 20px;
+           font-size: 12px; font-weight: 600; }
+  .badge.ok { background: #e6f4ea; color: var(--green); }
+  .badge.warn { background: #fdeaea; color: var(--red); }
+  .badge.off { background: #eee; color: #999; }
+  canvas { width: 100%; height: 90px; margin-top: 6px; }
+  .time { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .empty { color: var(--muted); font-size: 14px; padding: 30px 0; text-align: center; }
+</style>
+</head>
+<body>
+  <h1>护花使者 · 设备数据看板</h1>
+  <div class="sub">数据每 5 秒自动刷新 · 土壤湿度低于 <b>30%</b> 时提示浇水</div>
+  <div id="content"><div class="empty">正在加载设备数据…</div></div>
+
+<script>
+const DRY_THRESHOLD = 30;
+
+// 画一条简单的折线（不依赖任何外部图表库，断网也能显示）
+function drawLine(canvas, values, color) {
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, w, h);
+  if (!values || values.length < 2) return;
+
+  const max = 100, min = 0;
+  const pts = values.map((v, i) => [
+    (i / (values.length - 1)) * (w - 4) + 2,
+    h - 8 - ((v - min) / (max - min)) * (h - 16)
+  ]);
+
+  // 阈值线
+  ctx.strokeStyle = '#f0c9c9'; ctx.setLineDash([4, 4]); ctx.beginPath();
+  const ty = h - 8 - ((DRY_THRESHOLD - min) / (max - min)) * (h - 16);
+  ctx.moveTo(0, ty); ctx.lineTo(w, ty); ctx.stroke(); ctx.setLineDash([]);
+
+  // 面积
+  ctx.beginPath();
+  ctx.moveTo(pts[0][0], h - 8);
+  pts.forEach(p => ctx.lineTo(p[0], p[1]));
+  ctx.lineTo(pts[pts.length - 1][0], h - 8);
+  ctx.closePath();
+  ctx.fillStyle = color + '22'; ctx.fill();
+
+  // 折线
+  ctx.beginPath();
+  pts.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]));
+  ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
+}
+
+function fmt(v, unit, digits = 1) {
+  return v === null || v === undefined ? `--` :
+    `<span class="value">${v.toFixed(digits)}<span class="unit"> ${unit}</span></span>`;
+}
+
+async function loadHistory(code) {
+  const r = await fetch(`/api/devices/${encodeURIComponent(code)}/history?limit=40`);
+  if (!r.ok) return [];
+  const rows = await r.json();
+  return rows.map(x => x.soil_moisture).filter(v => v !== null).reverse();
+}
+
+async function refresh() {
+  try {
+    const res = await fetch('/api/devices');
+    const devices = await res.json();
+    const box = document.getElementById('content');
+
+    if (!devices.length) {
+      box.innerHTML = '<div class="empty">还没有设备上报数据。烧录好固件、连上 WiFi 后，这里会自动出现设备。</div>';
+      return;
+    }
+
+    box.innerHTML = '<div class="grid">' + devices.map(d => {
+      const l = d.latest;
+      const online = l && (new Date() - new Date(d.last_seen)) < 60000;
+      const badge = !online ? '<span class="badge off">离线</span>'
+        : (d.need_water ? '<span class="badge warn">需要浇水</span>' : '<span class="badge ok">状态良好</span>');
+      const color = d.need_water ? '#d64545' : '#2f9e57';
+      const pct = l && l.soil_moisture !== null ? Math.max(0, Math.min(100, l.soil_moisture)) : 0;
+      return `<div class="card" data-code="${d.code}">
+        <h2>${d.plant_name || d.name} ${badge}</h2>
+        <div class="code">${d.code} · IP ${d.ip_address || '未知'} · 固件 ${d.firmware || '-'}</div>
+        <div class="metrics">
+          <div class="metric"><div class="label">土壤湿度</div>
+            ${fmt(l && l.soil_moisture, '%')}
+            <div class="bar"><div style="width:${pct}%;background:${color}"></div></div>
+          </div>
+          <div class="metric"><div class="label">土壤温度</div>${fmt(l && l.soil_temp, '℃')}</div>
+        </div>
+        <canvas></canvas>
+        <div class="time">最后上报：${l ? new Date(l.created_at).toLocaleString('zh-CN') : '无'}</div>
+      </div>`;
+    }).join('') + '</div>';
+
+    for (const card of box.querySelectorAll('.card')) {
+      const code = card.dataset.code;
+      const vals = await loadHistory(code);
+      drawLine(card.querySelector('canvas'), vals, '#2f9e57');
+    }
+  } catch (e) {
+    document.getElementById('content').innerHTML =
+      '<div class="empty">无法连接后台服务，确认服务已启动（默认 http://localhost:8001）</div>';
+  }
+}
+
+refresh();
+setInterval(refresh, 5000);
+</script>
+</body>
+</html>

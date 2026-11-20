@@ -1,1 +1,48 @@
-﻿  user_uploads:
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: flower_postgres
+    environment:
+      POSTGRES_USER: flower
+      POSTGRES_PASSWORD: flower_password
+      POSTGRES_DB: flower_guardian
+      PGDATA: /var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flower -d flower_guardian"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    container_name: flower_backend
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg2://flower:flower_password@postgres:5432/flower_guardian
+      TZ: Asia/Shanghai
+    volumes:
+      - static_data:/app/static
+      - yolo_uploads:/app/models/uploads
+      - user_uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  static_data:
+  yolo_uploads:
+  user_uploads:
